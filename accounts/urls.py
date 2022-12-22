@@ -9,4 +9,5 @@ urlpatterns = [
     path('changepassword/', views.user_change_password, name='change_password'),
     path('sendresetpassword/', views.send_reset_password, name='send_reset_password'),
     path('resetpassword/<uid>/<token>/', views.user_reset_password, name='reset_password'),
+    path('activate/<uid>/<token>/', views.activate, name='activate')
 ]

@@ -3,7 +3,7 @@ from .models import CustomUser
 from django.utils.encoding import smart_str, smart_bytes,DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-
+from django.urls import reverse
 from .utils import Util
 
 
@@ -17,12 +17,23 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if data['password'] != data['password2']:
-            raise serializers.ValidationError({'password': 'Passwords must match.'})
+            raise serializers.ValidationError("Password and Confirm Password doesn't match")
         return data
 
     def create(self, validated_data):
         user = CustomUser.objects.create_user(validated_data['email'], validated_data['username'],
                                               validated_data['password'])
+        if user is not None:
+            uid = urlsafe_base64_encode(smart_bytes(user.id))
+            token = PasswordResetTokenGenerator().make_token(user)
+            link = "http://localhost:3000/accounts/activate/" + uid + "/" + token
+            message = 'Thank you for registering to our site. Please click the link below to activate your account {}'.format(
+                   link)
+            data = {'email_body': "Hi " + user.username + " " + message,
+                    'email_subject': "Activate your account",
+                    'to_email': user.email}
+            Util.send_email(data)
+
         return user
 
 
@@ -68,11 +79,8 @@ class SendResetPasswordSerializer(serializers.Serializer):
         if CustomUser.objects.filter(email=email).exists():
             user = CustomUser.objects.get(email=email)
             uid = urlsafe_base64_encode(smart_bytes(user.id))
-            print("uuid",uid)
             token = PasswordResetTokenGenerator().make_token(user)
-            print("token", token)
             link = "http://localhost:3000/accounts/resetpassword/" + uid + "/" + token
-            print("link",link)
             data = {'email_body': "Hi " + user.username + " Please use this link to reset your password " + link,
                     'email_subject': "Reset your password",
                     'to_email': user.email}

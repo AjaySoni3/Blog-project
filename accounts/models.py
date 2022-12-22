@@ -43,3 +43,13 @@ class CustomUser(AbstractUser):
         if not self.id:
             self.user_type = self.default_type
         return super().save(*args, **kwargs)
+
+
+class Reader(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='reader')
+    first_name = models.CharField(max_length=100, null=True, blank=True)
+    last_name = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return self.user.email

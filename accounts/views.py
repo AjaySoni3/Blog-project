@@ -1,5 +1,7 @@
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.encoding import smart_str, DjangoUnicodeDecodeError
+from django.utils.http import urlsafe_base64_decode
 from rest_framework.response import Response
-
 from .models import CustomUser
 from .renderers import UserRenderer
 from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer, ChangePasswordSerializer, \
@@ -22,6 +24,29 @@ def get_tokens_for_user(user):
     }
 
 
+class ActivateAPIView(APIView):
+    def post(self, request, uid, token):
+        try:
+            id = smart_str(urlsafe_base64_decode(uid))
+            user = CustomUser.objects.get(id=id)
+
+            if not PasswordResetTokenGenerator().check_token(user, token):
+                return Response({'error': 'Token is not valid, please request a '
+                                          'new one'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            user.is_active = True
+            user.save()
+            return Response({'success': 'User activated successfully'},
+                            status=status.HTTP_200_OK)
+        except DjangoUnicodeDecodeError as identifier:
+            return Response({'error': 'Invalid token'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+
+activate = ActivateAPIView.as_view()
+
+
 class RegisterAPIView(APIView):
     renderer_classes = [UserRenderer]
 
@@ -29,8 +54,10 @@ class RegisterAPIView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
+
             tokens = get_tokens_for_user(user)
-            return Response({"msg": "Registrations Successful", "tokens": tokens}, status=status.HTTP_201_CREATED)
+            return Response({"msg": "Email is sent to you to active your accounts", "tokens": tokens},
+                            status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -50,7 +77,7 @@ class LoginAPIView(APIView):
                 login(request, user)
                 tokens = get_tokens_for_user(user)
                 return Response({"msg": "Login Succesfull", "tokens": tokens}, status=status.HTTP_200_OK)
-            return Response({"errors": "Please enter correct email address or password"},
+            return Response({'error': {'non_field_errors': ['Email or Password is not Valid']}},
                             status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -96,6 +123,7 @@ class SendResetPasswordView(APIView):
 
 
 send_reset_password = SendResetPasswordView.as_view()
+
 
 class UserResetPasswordView(APIView):
     renderer_classes = [UserRenderer]
