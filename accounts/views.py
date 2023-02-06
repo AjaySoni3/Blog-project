@@ -10,6 +10,10 @@ from rest_framework import status, permissions
 from rest_framework.views import APIView
 from django.contrib.auth import login, authenticate
 
+from channels.layers import get_channel_layer
+from django.http import HttpResponse
+from asgiref.sync import async_to_sync
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -22,6 +26,9 @@ def get_tokens_for_user(user):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
+
+
+""" API to activate user account """
 
 
 class ActivateAPIView(APIView):
@@ -46,6 +53,8 @@ class ActivateAPIView(APIView):
 
 activate = ActivateAPIView.as_view()
 
+""" API to register user """
+
 
 class RegisterAPIView(APIView):
     renderer_classes = [UserRenderer]
@@ -62,6 +71,8 @@ class RegisterAPIView(APIView):
 
 
 register_api_view = RegisterAPIView.as_view()
+
+""" API to login user """
 
 
 class LoginAPIView(APIView):
@@ -84,6 +95,8 @@ class LoginAPIView(APIView):
 
 login_api_view = LoginAPIView.as_view()
 
+""" API to get user profile """
+
 
 class UserProfile(APIView):
     renderer_classes = [UserRenderer]
@@ -96,6 +109,8 @@ class UserProfile(APIView):
 
 
 user_profile = UserProfile.as_view()
+
+""" API to change user password """
 
 
 class UserChangePasswordView(APIView):
@@ -111,6 +126,8 @@ class UserChangePasswordView(APIView):
 
 user_change_password = UserChangePasswordView.as_view()
 
+""" API to send reset password link """
+
 
 class SendResetPasswordView(APIView):
     renderer_classes = [UserRenderer]
@@ -124,6 +141,8 @@ class SendResetPasswordView(APIView):
 
 send_reset_password = SendResetPasswordView.as_view()
 
+""" API to reset password """
+
 
 class UserResetPasswordView(APIView):
     renderer_classes = [UserRenderer]
@@ -136,3 +155,31 @@ class UserResetPasswordView(APIView):
 
 
 user_reset_password = UserResetPasswordView.as_view()
+
+''' Google Auth API '''
+
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
+
+
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+
+
+google_login = GoogleLogin.as_view()
+
+''' Test views '''
+
+
+def test(request):
+    message = "Hello World"
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "test_group",
+        {
+            "type": "test_message",
+            "message": "message"
+        }
+    )
+    return HttpResponse("Hello World")

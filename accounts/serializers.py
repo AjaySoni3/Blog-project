@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from .models import CustomUser
-from django.utils.encoding import smart_str, smart_bytes,DjangoUnicodeDecodeError
+from django.utils.encoding import smart_str, smart_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.urls import reverse
 from .utils import Util
+from .tasks import send_email
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -28,12 +29,13 @@ class RegisterSerializer(serializers.ModelSerializer):
             token = PasswordResetTokenGenerator().make_token(user)
             link = "http://localhost:3000/accounts/activate/" + uid + "/" + token
             message = 'Thank you for registering to our site. Please click the link below to activate your account {}'.format(
-                   link)
+                link)
             data = {'email_body': "Hi " + user.username + " " + message,
                     'email_subject': "Activate your account",
                     'to_email': user.email}
-            Util.send_email(data)
 
+            # Util.send_email(data)
+            send_email.delay(data)
         return user
 
 
@@ -53,7 +55,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class ChangePasswordSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=255, style={"input_type": "password"}, required=True)
-    password2 = serializers.CharField(max_length=255, style={"input_type": "password"} ,required=True)
+    password2 = serializers.CharField(max_length=255, style={"input_type": "password"}, required=True)
 
     class Meta:
         fields = ('password', 'password2',)
@@ -92,7 +94,7 @@ class SendResetPasswordSerializer(serializers.Serializer):
 
 class UserResetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=255, style={"input_type": "password"}, required=True)
-    password2 = serializers.CharField(max_length=255, style={"input_type": "password"} ,required=True)
+    password2 = serializers.CharField(max_length=255, style={"input_type": "password"}, required=True)
 
     class Meta:
         fields = ('password', 'password2',)
